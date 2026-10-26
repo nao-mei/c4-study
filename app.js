@@ -29,7 +29,18 @@
   }
   function mastery(d) { var s = S.stats[d]; return s && s.a ? Math.round(100 * s.c / s.a) : 0; }
   function bar(p) { return '<div class="bar"><i style="width:' + p + '%"></i></div>'; }
-  var disclaimer = '<p class="warn">AI-built personal study aid. Not official Anthropic or Capgemini material, and the content is AI-drafted and may contain errors; check it against Anthropic\'s docs. <a href="#/about">About and caveats</a></p>';
+  var disclaimer = '<p class="warn">AI-built personal study aid. Not official Anthropic material, and the content is AI-drafted and may contain errors; check it against Anthropic\'s docs.<br><a class="alink" href="#/about">About and caveats</a></p>';
+  // ---------- Theme (light / dark / auto) and build version ----------
+  var THEME_KEY = "certcoach.pref.theme";
+  var BUILD = "2026-10-26 12:50"; // stamped with the build time by scripts/build_site.py and scripts/build_single.py
+  function themePref() { try { var t = localStorage.getItem(THEME_KEY); return t === "light" || t === "dark" ? t : "auto"; } catch (e) { return "auto"; } }
+  function applyTheme() {
+    var t = themePref(), el = document.documentElement;
+    if (t === "auto") el.removeAttribute("data-theme"); else el.setAttribute("data-theme", t);
+    var dark = t === "dark" || (t === "auto" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var m = document.querySelector("meta[name=theme-color]"); if (m) m.setAttribute("content", dark ? "#1b1a19" : "#faf9f5");
+  }
+  window.CCtheme = function (v) { try { if (v === "auto") localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, v); } catch (e) {} applyTheme(); about(); };
   var ABOUT_KEY = "certcoach.pref.about";
   function aboutSeen() { try { return localStorage.getItem(ABOUT_KEY) === "1"; } catch (e) { return true; } }
   window.CCabout = function () { try { localStorage.setItem(ABOUT_KEY, "1"); } catch (e) {} if (location.hash === "#/" || location.hash === "") route(); else location.hash = "#/"; };
@@ -39,7 +50,7 @@
     app.innerHTML = "<h1>About C⁴ (CatClaudeCertCoach)</h1><p class='mut'>Please read before you rely on this.</p>" +
       "<div class='card'><b>What it is</b><ul class='pts'>" +
       li("A personal study aid for the Claude Certified Developer – Foundations exam, built with the help of an AI assistant (Claude).") +
-      li("It is <b>not</b> an official resource and has not been produced, reviewed or endorsed by Anthropic or by Capgemini.") +
+      li("It is <b>not</b> an official resource and has not been produced, reviewed or endorsed by Anthropic.") +
       li("It contains no real exam questions. All questions, lessons and explanations are original drafts.") + "</ul></div>" +
       "<div class='card trap'><b>Caveats</b><ul class='pts'>" +
       li("<b>It can be wrong.</b> All content is AI-drafted from Anthropic's public documentation and may contain mistakes or gaps. Items stay marked as unreviewed unless you tick them off yourself in the Review screen.") +
@@ -50,6 +61,8 @@
       li("It runs in your browser. Your progress, notes and flags are stored only on this device and are not sent anywhere. There are no accounts.") +
       li("Don't type client names, confidential or personal information into the review notes. Use Backup to move your progress between devices.") +
       li("If you share this with others, follow your organisation's policies, and tell them it is an unofficial AI-built draft.") + "</ul></div>" +
+      "<div class='card'><b>Appearance</b><div class='seg'>" + [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(function (o) { return "<button class='" + (themePref() === o[0] ? "sel" : "") + "' onclick=\"CCtheme('" + o[0] + "')\">" + o[1] + "</button>"; }).join("") + "</div><p class='mut'>Auto follows your phone's light or dark setting.</p></div>" +
+      "<div class='card'><b>Version</b><p class='mut'>" + (BUILD === "dev" ? "Development copy" : "Built " + esc(BUILD)) + " · " + C.questions.length + " questions · " + C.lessons.length + " lessons</p><p class='mut'>If you've uploaded an update, check this line to see whether it has reached this device.</p></div>" +
       (first ? "<button class='pri' onclick='CCabout()'>I understand, continue</button>" : "<button class='pri' onclick=\"location.hash='#/'\">Back to home</button>");
     window.scrollTo(0, 0);
   }
@@ -58,19 +71,58 @@
   var MARK = "<svg class='mark' viewBox='0 0 160 160' width='84' height='84' role='img' aria-label='C to the fourth: a C containing a paw print'><g color='#d97757' fill='none'><path d='M101.7 63.7A44 44 0 1 0 101.7 120.3' stroke='currentColor' stroke-width='14' stroke-linecap='round'/><g transform='translate(70 92) scale(0.5) translate(-80 -82)' fill='currentColor'><ellipse cx='38' cy='66' rx='11' ry='15' transform='rotate(-20 38 66)'/><ellipse cx='64' cy='44' rx='12' ry='16' transform='rotate(-8 64 44)'/><ellipse cx='96' cy='44' rx='12' ry='16' transform='rotate(8 96 44)'/><ellipse cx='122' cy='66' rx='11' ry='15' transform='rotate(20 122 66)'/><path d='M80 78C104 78 124 98 124 114C124 130 110 136 97 133C90 131 86 129 80 129C74 129 70 131 63 133C50 136 36 130 36 114C36 98 56 78 80 78Z'/></g><polyline points='111,45.6 124.3,27.4 124.3,54' stroke='currentColor' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'/><line x1='111' y1='45.6' x2='132' y2='45.6' stroke='currentColor' stroke-width='4.5' stroke-linecap='round'/></g></svg>";
 
   // ---------- Views ----------
+  // Small visual helpers: progress ring and paw icon (inline SVG, colours from the theme).
+  function ring(pct, size, inner) {
+    var sw = size < 60 ? 5 : 9, r = (size - sw - 3) / 2, c = 2 * Math.PI * r, m = size / 2;
+    return "<div class='ring" + (size < 60 ? " sm" : "") + "' style='width:" + size + "px;height:" + size + "px'><svg width='" + size + "' height='" + size + "' viewBox='0 0 " + size + " " + size + "' aria-hidden='true'><circle cx='" + m + "' cy='" + m + "' r='" + r + "' fill='none' stroke='var(--bd)' stroke-width='" + sw + "'/><circle cx='" + m + "' cy='" + m + "' r='" + r + "' fill='none' stroke='var(--acc)' stroke-width='" + sw + "' stroke-linecap='round' stroke-dasharray='" + c.toFixed(1) + "' stroke-dashoffset='" + (c * (1 - pct / 100)).toFixed(1) + "' transform='rotate(-90 " + m + " " + m + ")'/></svg><b>" + (inner === undefined ? pct + "%" : inner) + "</b></div>";
+  }
+  function setNav(r) { document.querySelectorAll("nav a").forEach(function (a) { a.className = a.getAttribute("href") === "#/" + r || (!r && a.getAttribute("href") === "#/") ? "on" : ""; }); }
+  function paw(sz) { return "<svg class='paw' width='" + sz + "' height='" + sz + "' viewBox='0 0 160 160' aria-hidden='true'><use href='#i-paw'/></svg>"; }
+  // Paw meter: five pads fill with progress (four toes first, the big pad last, so it is only full when everything is done).
+  function pawMeter(done, total) {
+    var n = done >= total && total > 0 ? 5 : Math.min(4, Math.floor(5 * done / Math.max(total, 1)));
+    var parts = ["<ellipse cx='38' cy='66' rx='11' ry='15' transform='rotate(-20 38 66)'/>", "<ellipse cx='64' cy='44' rx='12' ry='16' transform='rotate(-8 64 44)'/>", "<ellipse cx='96' cy='44' rx='12' ry='16' transform='rotate(8 96 44)'/>", "<ellipse cx='122' cy='66' rx='11' ry='15' transform='rotate(20 122 66)'/>", "<path d='M80 78C104 78 124 98 124 114C124 130 110 136 97 133C90 131 86 129 80 129C74 129 70 131 63 133C50 136 36 130 36 114C36 98 56 78 80 78Z'/>"];
+    return "<svg class='pawmeter' width='56' height='56' viewBox='0 0 160 160' role='img' aria-label='" + n + " of 5 paw pads filled'>" + parts.map(function (x, i) { return "<g fill='" + (i < n ? "var(--acc)" : "var(--bd)") + "'>" + x + "</g>"; }).join("") + "</svg>";
+  }
+  // Sitting cat for the finish screen (own artwork, theme colours): happy closed eyes, rosy cheeks, bow and bell.
+  function cat(sz) {
+    var ink = "#1f1e1d";
+    return "<svg class='cat' width='" + sz + "' height='" + sz + "' viewBox='28 0 128 170' aria-hidden='true'><path d='M112 142C150 142 152 100 128 96' fill='none' stroke='var(--acc)' stroke-width='12' stroke-linecap='round'/><ellipse cx='80' cy='118' rx='36' ry='38' fill='var(--acc)'/><circle cx='80' cy='66' r='30' fill='var(--acc)'/><polygon points='54,50 58,20 80,38' fill='var(--acc)'/><polygon points='106,50 102,20 80,38' fill='var(--acc)'/><polygon points='59,44 61,29 72,38' fill='var(--acc-soft)'/><polygon points='101,44 99,29 88,38' fill='var(--acc-soft)'/><ellipse cx='66' cy='152' rx='11' ry='7' fill='var(--acc-soft)'/><ellipse cx='94' cy='152' rx='11' ry='7' fill='var(--acc-soft)'/>" +
+      "<path d='M63 67Q69 61 75 67' fill='none' stroke='" + ink + "' stroke-width='2' stroke-linecap='round'/><path d='M85 67Q91 61 97 67' fill='none' stroke='" + ink + "' stroke-width='2' stroke-linecap='round'/><polygon points='76.5,73 83.5,73 80,77' fill='" + ink + "'/><path d='M73 81Q76.5 85 80 81Q83.5 85 87 81' fill='none' stroke='" + ink + "' stroke-width='1.8' stroke-linecap='round'/><circle cx='56' cy='76' r='5.5' fill='var(--acc-soft)'/><circle cx='104' cy='76' r='5.5' fill='var(--acc-soft)'/><g stroke='" + ink + "' stroke-width='1.2' stroke-linecap='round'><line x1='52' y1='80' x2='37' y2='78'/><line x1='52' y1='85' x2='37' y2='88'/><line x1='108' y1='80' x2='123' y2='78'/><line x1='108' y1='85' x2='123' y2='88'/></g>" +
+      "<path d='M56 91Q80 104 104 91' fill='none' stroke='var(--acc-ink)' stroke-width='5' stroke-linecap='round'/><polygon points='80,98 66,90 66,106' fill='var(--acc-ink)'/><polygon points='80,98 94,90 94,106' fill='var(--acc-ink)'/><circle cx='80' cy='98' r='4' fill='var(--acc-ink)'/><circle cx='80' cy='114' r='7' fill='#e8b94a' stroke='var(--acc-ink)' stroke-width='2'/><line x1='76' y1='115' x2='84' y2='115' stroke='var(--acc-ink)' stroke-width='1.5'/></svg>";
+  }
+  // The single most useful thing to do next, built from the existing planner logic.
+  function nextAction() {
+    var wd = S.plan.week ? weekDay() : 0, rec = today();
+    if (wd >= 1 && wd <= 7) {
+      var day = WEEK[wd - 1], todo = day.tasks.map(function (t) { return taskInfo(t, rec); }).filter(function (i) { return i.done < i.target; });
+      if (todo.length) return { kicker: "Day " + wd + " of 7", title: day.t, sub: todo.length + " task" + (todo.length === 1 ? "" : "s") + " left today", btn: todo[0].btn || "Open today's plan", act: todo[0].act || "location.hash='#/plan'" };
+      return { kicker: "Day " + wd + " of 7", title: "Today's tasks are done", sub: "Nice work. Come back tomorrow, or keep drilling.", btn: "Drill " + drillPrefs().n + " more", act: "location.hash='#/drill'" };
+    }
+    if (S.plan.date && daysUntil(S.plan.date) >= 0) {
+      var days = daysUntil(S.plan.date), p = planFor(days), t = today(), head = days === 0 ? "Exam day" : days + " day" + (days === 1 ? "" : "s") + " to go";
+      if (p.mock && !t.m) return { kicker: head, title: "Mock exam day", sub: p.note, btn: "Start today's mock", act: "location.hash='#/mock'" };
+      return { kicker: head, title: p.phase + " phase", sub: t.q + " of " + p.q + " practice questions done today", btn: "Start practising", act: "location.hash='#/drill'" };
+    }
+    return { kicker: "Welcome", title: "Pick how you want to study", sub: "Set a study plan, or just start a drill.", btn: "Set a study plan", act: "location.hash='#/plan'" };
+  }
   function home() {
     var h = "<h1 class='sr'>C⁴ – CatClaudeCertCoach</h1><div class='hdr'>" + MARK + "<p class='tag'>CAT · CLAUDE · CERT · COACH</p></div><p class='mut'>Claude Certified Developer – Foundations prep</p>";
     var tot = 0, w = 0;
     C.domains.forEach(function (d) { w += d.weight; tot += mastery(d.id) * d.weight; });
-    h += "<div class='card'><div class='row'><b>Readiness (weighted)</b><b>" + Math.round(tot / w) + "%</b></div>" + bar(Math.round(tot / w)) + "<p class='mut'>Pass mark is a scaled 720/1000; aim for 80%+ on mocks.</p></div>";
-    h += "<h2>Domains (by exam weight)</h2>";
+    var ready = Math.round(tot / w), na = nextAction(), n = drillPrefs().n;
+    h += "<div class='card hero'><p class='kick'>" + esc(na.kicker) + "</p><h2>" + esc(na.title) + "</h2><p class='mut'>" + esc(na.sub) + "</p><button class='pri' onclick=\"" + na.act + "\">" + esc(na.btn) + "</button></div>";
+    h += "<div class='grid2'><div class='card statc'>" + ring(ready, 84) + "<p class='mut'>Readiness, weighted by exam share</p></div>" +
+      "<div class='card statc'><div class='pawn'>" + paw(30) + "<b>" + streak() + "</b></div><p class='mut'>day streak</p><p class='mut'>" + today().q + " answered today</p></div></div>";
+    h += "<h2>Sections</h2><div class='card list'>";
     C.domains.forEach(function (d) {
-      h += "<div class='card'><div class='row'><span>" + esc(d.name) + "</span><span class='mut'>" + d.weight + "%</span></div>" + bar(mastery(d.id)) + "</div>";
+      h += "<button class='sec' onclick=\"CCstartDrill('" + d.id + "'," + n + ")\"><span class='row'><span>" + esc(d.name) + "</span><span class='chip'>" + d.weight + "%</span></span><span class='bar' style='display:block;margin-top:8px'><i style='width:" + mastery(d.id) + "%'></i></span></button>";
     });
-    h += mockHistory();
+    h += "</div><p class='mut'>Tap a section to start a " + n + "-question drill on it.</p>";
     h += reviewCard();
+    h += "<details class='card more'><summary>More: mock history, backup, reset</summary>" + mockHistory();
     h += "<h2>Backup</h2><div class='card'><p class='mut'>Progress is stored only on this device. Export a backup before clearing Safari data, reinstalling, or if the app's web address changes.</p><button onclick='CCexport()'>Export to file</button><button onclick='CCcopy()'>Copy backup text</button><label class='btn'>Restore from file<input type='file' accept='.json,application/json' hidden onchange='CCimportFile(this)'></label><details><summary>Restore from pasted text</summary><textarea id='bkt' rows='4' placeholder='Paste backup text here'></textarea><button onclick='CCimportText()'>Restore</button></details></div>";
-    h += "<button onclick='CCreset()'>Reset progress</button>" + disclaimer;
+    h += "<button onclick='CCreset()'>Reset progress</button></details>" + disclaimer;
     app.innerHTML = h;
   }
 
@@ -82,22 +134,24 @@
       if (today().l.indexOf(l.id) < 0) today().l.push(l.id);
       S.read[l.id] = 1; save();
       var idx = C.lessons.indexOf(l), nxt = C.lessons[idx + 1];
-      var h = "<a href='#/learn'>&larr; All lessons</a><h1>" + esc(l.title) + "</h1><p class='mut'>" + esc(dom(l.domain).name) + " · about " + lessonMins(l) + " min</p>";
-      h += "<div class='card'><p>" + esc(l.body) + "</p></div>";
-      if (l.points && l.points.length) h += "<h2>Key points</h2><div class='card'><ul class='pts'>" + l.points.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul></div>";
+      var h = "<div id='rp' class='rp' aria-hidden='true'><i></i></div><a class='back' href='#/learn'>‹ All lessons</a>";
+      h += "<div class='meta'><span class='chip'>" + esc(dom(l.domain).name) + "</span><span class='chip'>about " + lessonMins(l) + " min</span></div><h1>" + esc(l.title) + "</h1><div class='lesson'>";
+      h += "<p class='lead'>" + esc(l.body) + "</p>";
+      if (l.points && l.points.length) h += "<h2>Key points</h2><div class='card'><ol class='kp'>" + l.points.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ol></div>";
       if (l.code) h += "<pre>" + esc(l.code) + "</pre>";
-      if (l.traps && l.traps.length) h += "<h2>Common traps</h2><div class='card trap'><ul class='pts'>" + l.traps.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul></div>";
+      if (l.traps && l.traps.length) h += "<div class='card trap'><div class='trapt'><svg class='ti' viewBox='0 0 24 24' aria-hidden='true'><use href='#i-alert'/></svg><b>Common traps</b></div><ul class='pts'>" + l.traps.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ul></div>";
       if (l.sources && l.sources.length) h += "<details><summary>Sources</summary>" + l.sources.filter(function (u) { return /^https:\/\//.test(u); }).map(function (u) { return "<p class='src'><a href='" + esc(u) + "' target='_blank' rel='noopener noreferrer'>" + esc(u.replace(/^https:\/\//, "")) + "</a></p>"; }).join("") + "<p class='mut'>Docs change often; check the source if something here looks out of date.</p></details>";
-      h += "<button class='pri' onclick=\"location.hash='#/drill/" + l.domain + "'\">Drill this section (" + drillPrefs().n + " questions)</button>";
+      h += "</div><button class='pri' onclick=\"location.hash='#/drill/" + l.domain + "'\">Drill this section (" + drillPrefs().n + " questions)</button>";
       if (nxt) h += "<button onclick=\"location.hash='#/learn/" + nxt.id + "'\">Next: " + esc(nxt.title) + "</button>";
       app.innerHTML = h; return;
     }
     var h2 = "<h1>Learn</h1>", total = C.lessons.length, done = C.lessons.filter(function (x) { return S.read[x.id]; }).length;
-    h2 += "<div class='card'><div class='row'><span>Lessons read</span><b>" + done + " / " + total + "</b></div>" + bar(Math.round(100 * done / Math.max(total, 1))) + "</div>";
+    h2 += "<div class='card meter'>" + pawMeter(done, total) + "<div class='mt'><div class='row'><span>Lessons read</span><b>" + done + " / " + total + "</b></div><div style='margin-top:10px'>" + bar(Math.round(100 * done / Math.max(total, 1))) + "</div></div></div>";
     C.domains.forEach(function (d) {
       var ls = C.lessons.filter(function (x) { return x.domain === d.id; });
-      h2 += "<h2>" + esc(d.name) + " <span class='mut'>" + d.weight + "%</span></h2>";
-      ls.forEach(function (x) { h2 += "<button onclick=\"location.hash='#/learn/" + x.id + "'\">" + (S.read[x.id] ? "✓ " : "") + esc(x.title) + " <span class='mut'>· " + lessonMins(x) + " min</span></button>"; });
+      h2 += "<h2 class='row'><span>" + esc(d.name) + "</span><span class='chip'>" + d.weight + "%</span></h2><div class='card list'>";
+      ls.forEach(function (x) { h2 += "<button class='sec lr' onclick=\"location.hash='#/learn/" + x.id + "'\"><span class='tick" + (S.read[x.id] ? " on" : "") + "'>" + (S.read[x.id] ? "✓" : "") + "</span><span class='lt'>" + esc(x.title) + "</span><span class='chip'>" + lessonMins(x) + " min</span></button>"; });
+      h2 += "</div>";
     });
     app.innerHTML = h2;
   }
@@ -113,23 +167,26 @@
     });
     Q = { list: list, i: 0, picks: [], done: false, right: 0, mode: mode, end: mode === "mock" ? Date.now() + 120 * 60000 : 0 };
     if (mode === "mock") timer = setInterval(tick, 1000);
+    setNav(mode === "mock" ? "mock" : "drill");
     renderQ();
   }
   function tick() { var el = document.getElementById("t"); if (!el || !Q) return; var s = Math.max(0, Math.round((Q.end - Date.now()) / 1000)); el.textContent = Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); if (!s) finish(); }
   function renderQ() {
     var q = Q.list[Q.i], need = q.type === "multi" ? (q.pick || q.correct.length) : 1;
-    var h = "<div class='row'><span class='mut'>" + (Q.i + 1) + " / " + Q.list.length + " · " + esc(dom(q.domain).name) + "</span>" + (Q.mode === "mock" ? "<b id='t'></b>" : "") + "</div>";
+    var total = Q.list.length, h = "<div class='qhead'><div class='row'><span class='chip'>" + esc(dom(q.domain).name) + "</span><span class='mut'>" + (Q.i + 1) + " of " + total + (Q.mode === "mock" ? "" : " · " + Q.right + " correct") + "</span>" + (Q.mode === "mock" ? "<b id='t'></b>" : "") + "</div><div class='pbar'><i style='width:" + Math.round(100 * Q.i / total) + "%'></i></div></div>";
     var sc = q.scenario && C.scenarios && C.scenarios[q.scenario];
-    if (sc) h += "<div class='card scn'><b>Scenario: " + esc(sc.title) + "</b><p>" + esc(sc.text) + "</p></div>";
-    h += "<div class='card'><p><b>" + esc(q.stem) + "</b></p>" + (need > 1 ? "<p class='mut'>Select " + need + "</p>" : "") + "</div>";
-    q.options.forEach(function (o, k) { h += "<button id='o" + k + "' onclick='CCpick(" + k + ")'>" + esc(o) + "</button>"; });
+    if (sc) h += "<details class='card scn' open><summary><b>Scenario: " + esc(sc.title) + "</b></summary><p>" + esc(sc.text) + "</p></details>";
+    h += "<div class='card qcard'><p class='stem'><b>" + esc(q.stem) + "</b></p>" + (need > 1 ? "<p class='mut'>Select " + need + "</p>" : "") + "</div>";
+    q.options.forEach(function (o, k) { h += "<button id='o" + k + "' class='" + optCls(need) + "' onclick='CCpick(" + k + ")'><span class='mk'></span><span class='tx'>" + esc(o) + "</span></button>"; });
     h += "<div id='fb'></div><button class='pri' id='go' onclick='CCgo()'>Submit</button>";
     app.innerHTML = h; Q.cur = []; Q.locked = false; tick();
   }
+  function needOf(q) { return q.type === "multi" ? (q.pick || q.correct.length) : 1; }
+  function optCls(need, state) { return "opt" + (need > 1 ? " multi" : "") + (state ? " " + state : ""); }
   window.CCpick = function (k) {
     if (Q.locked) return; var q = Q.list[Q.i], need = q.type === "multi" ? (q.pick || q.correct.length) : 1, p = Q.cur, ix = p.indexOf(k);
     if (ix >= 0) p.splice(ix, 1); else { if (need === 1) p.length = 0; if (p.length < need) p.push(k); }
-    q.options.forEach(function (_, j) { document.getElementById("o" + j).className = p.indexOf(j) >= 0 ? "sel" : ""; });
+    q.options.forEach(function (_, j) { document.getElementById("o" + j).className = optCls(need, p.indexOf(j) >= 0 ? "sel" : ""); });
   };
   window.CCgo = function () {
     var q = Q.list[Q.i], need = q.type === "multi" ? (q.pick || q.correct.length) : 1;
@@ -137,29 +194,31 @@
     if (Q.cur.length !== need) { alert("Select " + need + " answer" + (need > 1 ? "s" : "")); return; }
     var ok = q.correct.length === Q.cur.length && q.correct.every(function (c) { return Q.cur.indexOf(c) >= 0; });
     Q.locked = true; if (ok) Q.right++; record(q, ok); Q.picks.push(ok);
-    if (Q.mode === "mock" && !mockFeedback()) { document.getElementById("go").textContent = Q.i + 1 < Q.list.length ? "Next" : "Finish"; q.options.forEach(function (_, j) { document.getElementById("o" + j).className = Q.cur.indexOf(j) >= 0 ? "sel" : ""; }); return; }
+    if (Q.mode === "mock" && !mockFeedback()) { document.getElementById("go").textContent = Q.i + 1 < Q.list.length ? "Next" : "Finish"; q.options.forEach(function (_, j) { document.getElementById("o" + j).className = optCls(need, Q.cur.indexOf(j) >= 0 ? "sel" : ""); }); return; }
     showFeedback(q, ok);
     document.getElementById("go").textContent = Q.i + 1 < Q.list.length ? "Next" : "Finish";
   };
   // Marks each option (✓ correct, ✗ your wrong pick) and explains the result.
   function showFeedback(q, ok) {
+    var need = needOf(q);
     q.options.forEach(function (o, j) {
       var c = q.correct.indexOf(j) >= 0, s = Q.cur.indexOf(j) >= 0, b = document.getElementById("o" + j);
-      b.className = c ? "ok" : (s ? "bad" : ""); b.textContent = (c ? "✓ " : s ? "✗ " : "") + o;
+      b.className = optCls(need, c ? "ok" : (s ? "bad" : "")); b.querySelector(".mk").textContent = c ? "✓" : (s ? "✗" : "");
     });
-    function item(j, mark, label) { return "<p><span class='mut'>" + label + "</span> " + esc(q.options[j]) + (q.why ? "<br><span class='rsn'>" + esc(q.why[j]) + "</span>" : "") + "</p>"; }
-    var h = "<div class='card'><b>" + (ok ? "✓ Correct" : "✗ Incorrect") + "</b>";
-    if (!ok) Q.cur.forEach(function (j) { if (q.correct.indexOf(j) < 0) h += item(j, "✗", "You chose:"); });
-    q.correct.forEach(function (j) { h += item(j, "✓", "Correct answer:"); });
-    h += "<p><span class='mut'>Summary:</span> " + esc(q.explanation) + "</p>";
+    function ans(j, kind, label) { return "<div class='ans " + kind + "'><span class='lbl'>" + label + "</span><span class='at'>" + esc(q.options[j]) + "</span>" + (q.why ? "<span class='rsn'>" + esc(q.why[j]) + "</span>" : "") + "</div>"; }
+    var h = "<div class='card fbk " + (ok ? "good" : "miss") + "'><div class='banner'><b>" + (ok ? "✓ Correct" : "✗ Incorrect") + "</b></div>";
+    h += "<div class='ans why'><span class='lbl'>Why</span><span class='at'>" + esc(q.explanation) + "</span></div>";
+    if (!ok) Q.cur.forEach(function (j) { if (q.correct.indexOf(j) < 0) h += ans(j, "bad", "You chose"); });
+    q.correct.forEach(function (j) { h += ans(j, "ok", "Correct answer"); });
     var rv = S.rev["q:" + q.id];
-    h += "<p class='mut' style='font-size:13px'>" + (rv && rv.s === "ok" ? "✓ You marked this question as reviewed." : rv && rv.s === "flag" ? "⚑ You flagged this question for fixing." : "AI-drafted question, not yet reviewed by you.") + "</p>";
+    h += "<p class='mut fine'>" + (rv && rv.s === "ok" ? "✓ You marked this question as reviewed." : rv && rv.s === "flag" ? "⚑ You flagged this question for fixing." : "AI-drafted question, not yet reviewed by you.") + "</p>";
     if (q.why) {
       h += "<details><summary>Why each option</summary>";
       q.options.forEach(function (o, j) { h += "<p><b>" + (q.correct.indexOf(j) >= 0 ? "✓ " : "✗ ") + esc(o) + "</b><br><span class='rsn'>" + esc(q.why[j]) + "</span></p>"; });
       h += "</details>";
     }
-    document.getElementById("fb").innerHTML = h + "</div>";
+    var fb = document.getElementById("fb"); fb.innerHTML = h + "</div>";
+    if (fb.scrollIntoView) { try { fb.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) { fb.scrollIntoView(); } }
   }
   var MFB = "certcoach.pref.mockfb";
   function mockFeedback() { try { return localStorage.getItem(MFB) !== "0"; } catch (e) { return true; } }
@@ -180,7 +239,11 @@
       if (Object.keys(dd).length > 1) { brk = "<h2>By section</h2>"; C.domains.forEach(function (d) { var b = dd[d.id]; if (b) brk += "<div class='card'><div class='row'><span>" + esc(d.name) + "</span><b>" + b.c + "/" + b.n + "</b></div>" + bar(Math.round(100 * b.c / b.n)) + "</div>"; }); }
       btns = "<button class='pri' onclick='CCdrillAgain()'>Another " + LD.n + " questions</button><button onclick='CCdrillMenu()'>Change drill settings</button><button onclick=\"location.hash='#/'\">See progress</button>";
     }
-    app.innerHTML = "<h1>" + pct + "%</h1><div class='card'><p>" + r + " of " + n + " correct" + (Q.mode === "mock" ? ". Unanswered questions count as wrong." : ".") + "</p>" + bar(pct) + "</div>" + brk + btns;
+    var msg = pct >= 90 ? "Brilliant work" : pct >= 70 ? "Nice work" : pct >= 50 ? "Getting there" : "Good practice";
+    var sub = r + " of " + n + " correct" + (Q.mode === "mock" ? ". Unanswered questions count as wrong." : pct < 50 ? ". The explanations are where the learning happens." : ".");
+    var cel = "<div class='cele" + (pct >= 70 ? " pop" : "") + "' aria-hidden='true'>" + cat(84) + "</div>";
+    app.innerHTML = "<div class='fin'>" + cel + ring(pct, 128) + "<h1>" + msg + "</h1><p class='mut'>" + esc(sub) + "</p><p class='mut streakline'>" + paw(18) + " " + streak() + "-day streak</p></div>" + brk + btns;
+    window.scrollTo(0, 0);
     Q = null;
   }
 
@@ -588,47 +651,61 @@
     save(); plan();
   };
   window.CCstopWeek = function () { delete S.plan.week; save(); plan(); };
-  function planWeek(wd) {
-    var day = WEEK[wd - 1], rec = today();
-    var h = "<h1>Learn in a week</h1><div class='card'><div class='row'><b>Day " + wd + " of 7</b>" + (S.plan.date ? "<span class='mut'>Exam " + S.plan.date + "</span>" : "") + "</div><p><b>" + esc(day.t) + "</b></p><p class='mut'>" + esc(day.note) + "</p><p class='mut'>Streak: " + streak() + " day" + (streak() === 1 ? "" : "s") + "</p></div>";
-    h += "<h2>Today's tasks</h2>";
-    var left = 0;
-    day.tasks.forEach(function (t) {
-      var i = taskInfo(t, rec), finished = i.done >= i.target; if (!finished) left++;
-      h += "<div class='card'><div class='row'><span>" + i.label + "</span><b>" + i.done + " / " + i.target + (finished ? " ✓" : "") + "</b></div>" + bar(Math.round(100 * i.done / i.target)) + (finished ? "" : "<button onclick=\"" + i.act + "\">" + i.btn + "</button>") + "</div>";
+  // One task row: small progress ring, label, "x of y", and an action button while unfinished.
+  function trow(label, done, target, btn, act) {
+    if (!target) return "";
+    var fin = done >= target, pct = target ? Math.min(100, Math.round(100 * done / target)) : 100;
+    return "<div class='trow" + (fin ? " fin" : "") + "'>" + ring(pct, 44, fin ? "✓" : "") + "<div class='tb'><div class='tl'>" + label + "</div><div class='mut'>" + done + " of " + target + "</div></div>" + (!fin && act ? "<button class='mini' onclick=\"" + act + "\">" + esc(btn || "Open") + "</button>" : "") + "</div>";
+  }
+  // Seven day pills: paw on completed days, outline on today, dashed for missed days.
+  function wkStrip(wd) {
+    var h = "<div class='strip'>";
+    WEEK.forEach(function (dd, k) {
+      var r = S.daily[dkey(weekDate(k))], past = k < wd - 1, now = k === wd - 1;
+      var full = (past || now) && dd.tasks.every(function (t) { var i = taskInfo(t, r); return i.done >= i.target; });
+      h += "<div class='dcol'><div class='dpill" + (now ? " now" : "") + (full ? " done" : "") + (past && !full ? " miss" : "") + "' title='" + esc(dd.t) + "'>" + (full ? paw(18) : (k + 1)) + "</div><span>" + weekDate(k).toLocaleDateString(undefined, { weekday: "narrow" }) + "</span></div>";
     });
-    h += left ? "<p class='mut'>" + left + " task" + (left === 1 ? "" : "s") + " left today.</p>" : "<div class='card'><b>✓ Day " + wd + " complete.</b><p class='mut'>" + (wd < 7 ? "Rest, and come back tomorrow." : "Week done. Review anything flagged weak, then rest before the exam.") + "</p></div>";
-    h += "<h2>Your week</h2><div class='card'>";
+    return h + "</div>";
+  }
+  function planWeek(wd) {
+    var day = WEEK[wd - 1], rec = today(), left = 0;
+    var h = "<h1 class='sr'>Learn in a week</h1><div class='card hero'><p class='kick'>Day " + wd + " of 7" + (S.plan.date ? " · exam " + esc(S.plan.date) : "") + "</p><h2>" + esc(day.t) + "</h2><p class='mut'>" + esc(day.note) + "</p></div>";
+    h += wkStrip(wd) + "<h2>Today's tasks</h2><div class='card list'>";
+    day.tasks.forEach(function (t) { var i = taskInfo(t, rec); if (i.done < i.target) left++; h += trow(i.label, i.done, i.target, i.btn, i.act); });
+    h += "</div>";
+    if (!left) h += "<div class='card soft'><b>✓ Day " + wd + " complete.</b><p class='mut'>" + (wd < 7 ? "Rest, and come back tomorrow." : "Week done. Review anything flagged weak, then rest before the exam.") + "</p></div>";
+    h += "<details class='card more'><summary>The whole week</summary>";
     WEEK.forEach(function (dd, k) {
       var r = S.daily[dkey(weekDate(k))], full = k < wd - 1 || k === wd - 1 ? dd.tasks.every(function (t) { var i = taskInfo(t, r); return i.done >= i.target; }) : false;
       var mark = k === wd - 1 ? "▶" : k < wd - 1 ? (full ? "✓" : "–") : "○";
       h += "<div class='row wk" + (k === wd - 1 ? " now" : "") + "'><span>" + mark + " Day " + (k + 1) + " · " + esc(dd.t) + "</span><span class='mut'>" + weekDate(k).toLocaleDateString(undefined, { weekday: "short" }) + "</span></div>";
     });
-    h += "</div><p class='mut'>Heads up: the lessons are short summaries. Most of the teaching comes from the explanations after each drill question, so read those, especially when you get one wrong.</p>";
-    h += "<button onclick=\"if(confirm('Restart the week from today?'))CCweek()\">Restart the week from today</button><button onclick=\"if(confirm('Stop the intensive plan?'))CCstopWeek()\">Stop the intensive plan</button>" + disclaimer;
+    h += "<p class='mut'>Streak: " + streak() + " day" + (streak() === 1 ? "" : "s") + "</p></details>";
+    h += "<p class='mut'>Heads up: the lessons are short summaries. Most of the teaching comes from the explanations after each drill question, so read those, especially when you get one wrong.</p>";
+    h += "<details class='card more'><summary>Plan options</summary><button onclick=\"if(confirm('Restart the week from today?'))CCweek()\">Restart the week from today</button><button onclick=\"if(confirm('Stop the intensive plan?'))CCstopWeek()\">Stop the intensive plan</button></details>" + disclaimer;
     app.innerHTML = h;
   }
   function plan() {
     var h = "<h1>Study plan</h1>", wd = S.plan.week ? weekDay() : 0;
     if (wd >= 1 && wd <= 7) { planWeek(wd); return; }
-    if (S.plan.week && wd > 7) h += "<div class='card'><b>✓ Your 7-day intensive week is finished.</b><p class='mut'>Showing your standard plan again.</p><button onclick='CCstopWeek()'>Dismiss</button></div>";
+    if (S.plan.week && wd > 7) h += "<div class='card soft'><b>✓ Your 7-day intensive week is finished.</b><p class='mut'>Showing your standard plan again.</p><button onclick='CCstopWeek()'>Dismiss</button></div>";
     if (!S.plan.date) {
       var def = new Date(); def.setDate(def.getDate() + 28);
-      h += "<div class='card'><button class='pri' onclick='CCweek()'>Learn in a week (7-day intensive)</button><p class='mut'>A day-by-day schedule of lessons, drills, scenarios and two mocks. Sets your exam date to 8 days from now.</p></div>";
+      h += "<div class='card hero'><p class='kick'>Fastest</p><h2>Learn in a week</h2><p class='mut'>A day-by-day schedule of lessons, drills, scenarios and two mocks. Sets your exam date to 8 days from now.</p><button class='pri' onclick='CCweek()'>Start the 7-day intensive</button></div>";
       h += "<div class='card'><p>Or pick your exam date and C⁴ builds daily targets from today to that date.</p><input type='date' id='exd' min='" + dkey() + "' value='" + dkey(def) + "'><button class='pri' onclick=\"CCsetDate(document.getElementById('exd').value)\">Create plan</button></div>";
       h += "<p class='mut'>Or start with a standard plan:</p><button onclick='CCquick(2)'>2 weeks (intensive)</button><button onclick='CCquick(4)'>4 weeks (recommended)</button><button onclick='CCquick(8)'>8 weeks (relaxed)</button>" + disclaimer;
       app.innerHTML = h; return;
     }
     var days = daysUntil(S.plan.date), p = planFor(days), t = today(), due = C.cards.filter(function (c) { var s = S.cards[c.id]; return !s || s.due <= Date.now(); }).length;
-    if (days < 0) { app.innerHTML = h + "<div class='card'><p>Your exam date (" + S.plan.date + ") has passed.</p></div><button class='pri' onclick='CCclearDate()'>Set a new exam date</button>"; return; }    h += "<div class='card'><div class='row'><b>" + (days === 0 ? "Exam day" : days + " day" + (days > 1 ? "s" : "") + " to go") + "</b><span class='mut'>" + S.plan.date + "</span></div><p><b>" + p.phase + " phase.</b> " + p.note + "</p><p class='mut'>Streak: " + streak() + " day" + (streak() === 1 ? "" : "s") + "</p></div>";
-    h += "<h2>Today</h2>";
-    if (p.l) h += prog("Lessons", t.l.length, p.l);
-    h += prog("Practice questions", t.q, p.q) + prog("Flashcards", t.c, Math.min(p.c, Math.max(due + t.c, 1)));
-    if (p.mock) h += prog("Mock exam (recommended today)", t.m, 1);
-    var f = focusDomains();
-    h += "<h2>Focus areas</h2><p class='mut'>Biggest gap weighted by exam share:</p>";
-    f.forEach(function (d) { h += "<button onclick=\"location.hash='#/drill/" + d.id + "'\">" + esc(d.name) + " <span class='mut'>(" + d.weight + "% of exam · " + mastery(d.id) + "% so far)</span></button>"; });
-    h += "<button class='pri' onclick=\"location.hash='#/" + (p.mock ? "mock" : "drill") + "'\">" + (p.mock ? "Start today's mock" : "Start practising") + "</button><button onclick='CCclearDate()'>Change exam date</button><h2>Short on time?</h2><button onclick=\"if(confirm('Start the 7-day intensive plan from today?'))CCweek()\">Switch to the 7-day intensive plan</button>" + disclaimer;
+    if (days < 0) { app.innerHTML = h + "<div class='card'><p>Your exam date (" + esc(S.plan.date) + ") has passed.</p></div><button class='pri' onclick='CCclearDate()'>Set a new exam date</button>"; return; }
+    h += "<div class='card hero'><p class='kick'>" + esc(p.phase) + " phase</p>" + (days === 0 ? "<div class='bignum'><span>Exam day</span></div>" : "<div class='bignum'><b>" + days + "</b><span>" + (days === 1 ? "day" : "days") + " to go</span></div>") + "<p class='mut'>" + esc(p.note) + "</p><p class='mut'>Exam " + esc(S.plan.date) + " · streak " + streak() + " day" + (streak() === 1 ? "" : "s") + "</p></div>";
+    h += "<h2>Today</h2><div class='card list'>";
+    if (p.l) h += trow("Lessons", t.l.length, p.l, "Open Learn", "location.hash='#/learn'");
+    h += trow("Practice questions", t.q, p.q, "Start a drill", "location.hash='#/drill'") + trow("Flashcards", t.c, Math.min(p.c, Math.max(due + t.c, 1)), "Review cards", "location.hash='#/cards'");
+    if (p.mock) h += trow("Mock exam (recommended today)", t.m, 1, "Go to mock", "location.hash='#/mock'");
+    h += "</div><h2>Focus areas</h2><p class='mut'>Biggest gap, weighted by exam share:</p><div class='card list'>";
+    focusDomains().forEach(function (d) { h += "<button class='sec' onclick=\"location.hash='#/drill/" + d.id + "'\"><span class='row'><span>" + esc(d.name) + "</span><span class='chip'>" + mastery(d.id) + "% so far</span></span></button>"; });
+    h += "</div><button class='pri' onclick=\"location.hash='#/" + (p.mock ? "mock" : "drill") + "'\">" + (p.mock ? "Start today's mock" : "Start practising") + "</button><button class='quiet' onclick='CCclearDate()'>Change exam date</button><button class='quiet' onclick=\"if(confirm('Start the 7-day intensive plan from today?'))CCweek()\">Switch to the 7-day intensive plan</button>" + disclaimer;
     app.innerHTML = h;
   }
 
@@ -637,10 +714,17 @@
     var p = location.hash.replace(/^#\/?/, "").split("/"), r = p[0] || "";
     if (!aboutSeen() || r === "about") { clearInterval(timer); Q = null; about(); return; }
     if (r !== "drill" && r !== "mock") { clearInterval(timer); Q = null; }
-    document.querySelectorAll("nav a").forEach(function (a) { a.className = a.getAttribute("href") === "#/" + r || (!r && a.getAttribute("href") === "#/") ? "on" : ""; });
+    setNav(r);
     window.scrollTo(0, 0);
     if (r === "learn") learn(p[1]); else if (r === "drill") drill(p[1]); else if (r === "mock") mock(); else if (r === "cards") cards(); else if (r === "plan") plan(); else if (r === "review") { RV = null; review(); } else home();
   }
+  applyTheme();
+  window.addEventListener("scroll", function () {
+    var e = document.getElementById("rp"); if (!e) return;
+    var d = document.documentElement, max = d.scrollHeight - d.clientHeight, p = max > 0 ? d.scrollTop / max : 0;
+    e.firstChild.style.width = Math.min(100, Math.max(0, p * 100)) + "%";
+  }, { passive: true });
+  if (window.matchMedia) { try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme); } catch (e) {} }
   window.addEventListener("hashchange", route); route();
   if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) navigator.serviceWorker.register("sw.js");
 })();
