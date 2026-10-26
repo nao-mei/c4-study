@@ -116,6 +116,9 @@ button.opt.bad{border-color:var(--bad);background:var(--bad-soft)}button.opt.bad
 .cele{display:flex;justify-content:center;margin-bottom:6px}
 .cele.pop .cat{animation:catpop .7s ease-out both}@keyframes catpop{0%{opacity:0;transform:translateY(10px) scale(.9)}100%{opacity:1;transform:none}}
 .meter{display:flex;align-items:center;gap:14px}.meter .mt{flex:1;min-width:0}.pawmeter{flex:none}
+#xc{max-width:640px;margin:0 auto;padding:12px 16px 0}#xc+main{padding-top:4px}
+.xchip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;margin:0;border:1px solid var(--bd);border-radius:999px;background:var(--card);color:var(--fg);text-decoration:none;font-size:13px}.xchip b{font-family:var(--font-head);color:var(--acc-ink)}.xchip span{color:var(--mut)}
+.exam .examrow{display:flex;align-items:center;gap:16px;margin:10px 0}.examstat .pawn{height:auto;justify-content:flex-start}.examstat .pawn b{font-size:24px}.examstat p{margin:2px 0}
 @keyframes pawpop{0%{transform:scale(.4) translateY(14px);opacity:0}35%{opacity:1}100%{transform:scale(1) translateY(-6px);opacity:.9}}
 /* lessons */
 .rp{position:fixed;top:env(safe-area-inset-top);left:0;right:0;height:3px;z-index:20}.rp i{display:block;height:100%;width:0;background:var(--acc)}
@@ -161,7 +164,7 @@ details.more>summary{font-family:var(--font-head);font-weight:600}
 </svg>
 <main id="app"></main>
 <nav id="nav">
-  <a href="#/"><svg><use href="#i-home"/></svg><span>Home</span></a>
+  <a href="#/home"><svg><use href="#i-home"/></svg><span>Home</span></a>
   <a href="#/plan"><svg><use href="#i-plan"/></svg><span>Plan</span></a>
   <a href="#/learn"><svg><use href="#i-learn"/></svg><span>Learn</span></a>
   <a href="#/drill"><svg><use href="#i-drill"/></svg><span>Drill</span></a>
@@ -194,6 +197,16 @@ details.more>summary{font-family:var(--font-head);font-weight:600}
 <script src="content/gap-h.js"></script>
 <script src="content/gap-i.js"></script>
 <script src="content/gap-j.js"></script>
+<script src="content/arch-base.js"></script>
+<script src="content/arch-design.js"></script>
+<script src="content/arch-models.js"></script>
+<script src="content/arch-integ.js"></script>
+<script src="content/arch-eval.js"></script>
+<script src="content/arch-gov.js"></script>
+<script src="content/arch-comm.js"></script>
+<script src="content/arch-devprod.js"></script>
+<script src="content/arch-cards.js"></script>
+<script src="content/exams.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

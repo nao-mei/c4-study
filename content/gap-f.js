@@ -72,7 +72,7 @@
 
   window.CC.questions.push(
     S("x01", "tools", "Which mechanism fits the review checklist and report template best?",
-      ["A custom tool that returns the checklist text each time Claude calls it", "A Skill folder whose SKILL.md carries the checklist and report template, loaded only when a review is requested", "An MCP server, hosted centrally, that serves the checklist as a prompt and resource", "Always-on text added to every session's instructions so the checklist is never missed"], 1,
+      ["A custom tool defined in the app that returns the checklist text each time Claude calls it", "A Skill whose SKILL.md holds the checklist and report template, loaded only when a review is requested", "An MCP server, hosted centrally, that serves the checklist and template as a prompt and resource", "Always-on text added to every session's instructions so the checklist and template are never missed"], 1,
       "The gap is know-how needed only on request, which is what a Skill packages and loads on demand.", "scX1"),
     S("x02", "tools", "An agent has 40 Skills installed. Before any Skill is triggered, what from them occupies context?",
       ["The full SKILL.md body of each Skill, so requests can be matched quickly", "Only the name and description from each Skill's frontmatter", "Nothing at all, because Skills are loaded only after a user types a slash command", "The bundled scripts and reference files, preloaded so they are ready to run"], 1,
@@ -108,7 +108,7 @@
       ["A tool, because the model should decide on its own when to run it", "A resource, because the host application decides what context to attach", "A sampling request, because the server asks the client's model to draft the notes", "A prompt, because prompts are user-selected templates that accept arguments"], 3,
       "Prompts are user-controlled templates; tools are model-controlled and resources are application-controlled."),
     S("x13", "tools", "A tool receives a departure date in the past. How should the server report this so the model can fix its next call?",
-      ["Return a JSON-RPC protocol error, because any invalid input is a malformed request", "Close the connection so the client restarts the server and Claude retries", "Return a normal result flagged isError true, with an actionable message saying the date must be in the future", "Return an empty successful result and let Claude infer the input was wrong"], 2,
+      ["Return a JSON-RPC protocol error, because any invalid input counts as a malformed request", "Close the connection so that the client restarts the server and Claude simply retries", "Return a normal result with isError true and a message that the date must be in the future", "Return an empty successful result and let Claude infer for itself that the input was wrong"], 2,
       "Input validation and business errors belong in the result with isError true; protocol errors are for unknown tools and malformed requests."),
     S("x14", "tools", "A platform team builds an MCP server over an internal API that must serve many users' clients across the network, and it will be added with claude mcp add. Which transport fits?",
       ["stdio, where each client launches the server as a local subprocess", "The older HTTP+SSE transport, which the current specification recommends for remote servers", "Streamable HTTP: one endpoint accepting POSTs, protected by authentication", "A WebSocket transport, which the specification lists as a standard transport"], 2,

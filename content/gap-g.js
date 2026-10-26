@@ -133,7 +133,7 @@
       1, "A 400 means the request itself is invalid for that model, so retrying the same body fails again; the fix is to change the request."),
     S("y10", "eval", "Where did the failure in this trace originate, and what is the first fix?",
       ["The model invented a status, so add a never-guess line to the prompt and treat the integration layer as correct",
-       "The integration layer: the wrapper reported a timeout as success, so return is_error true with a message saying what failed and what to try",
+       "The integration layer: the wrapper reported a timeout as success, so return is_error true with an actionable message",
        "The API: the 200 responses reveal a transient outage, so add retries around the messages call and monitor status",
        "The stop reason: end_turn on the last step shows the answer was verified, so no step in the trace needs changes"],
       1, "The model reasoned over an empty result that looked like success; surfacing the failure with is_error lets it retry or report honestly.", "scY2"),

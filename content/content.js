@@ -40,7 +40,7 @@ window.CC = {
       options: ["Add a system prompt line telling Claude to remember earlier turns", "Increase max_tokens so that earlier turns can fit in the reply", "Reuse the same API key so the API can link requests to one conversation", "Resend the full prior conversation in the messages array with each new request"], correct: [3],
       explanation: "The API is stateless; your application must resend the history. max_tokens and temperature do not affect memory." },
     { id: "q2", domain: "apps", type: "single", stem: "Your response ends with stop_reason = 'max_tokens'. What happened?",
-      options: ["Output was cut off at the max_tokens limit that you set in the request", "The model reached a natural end of its answer", "The model paused to request a tool call from your code", "A custom stop sequence appeared in the generated text"], correct: [0],
+      options: ["Output was cut off at the max_tokens limit that was set in the request", "The model reached a natural end of its answer and stopped on its own", "The model paused mid-answer to request a tool call from your code", "A custom stop sequence that you supplied appeared in the generated text"], correct: [0],
       explanation: "max_tokens means generation hit the cap and may be cut off mid-answer. Raise the limit or request shorter output." },
     { id: "q3", domain: "apps", type: "multi", pick: 2, stem: "Which TWO are appropriate when handling HTTP 429 and 529/overloaded errors?",
       options: ["Retry with exponential backoff and jitter", "Retry immediately in a tight loop until the request succeeds", "Cap the number of retries", "Resend the failed request with a higher max_tokens value"], correct: [0, 2],

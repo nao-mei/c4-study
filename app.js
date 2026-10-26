@@ -1,20 +1,39 @@
 (function () {
-  var C = window.CC, app = document.getElementById("app");
-  var KEY = "certcoach.v1";
+  var app = document.getElementById("app");
+  // ---------- Exams ----------
+  // Each exam (content/exams.js) has its own content, saved progress and study plan. The functions below always work on the
+  // "current" exam; useExam() switches it. Developer keeps the original storage key, so earlier progress is unchanged.
+  var EXAMS = window.CCEXAMS || {}, EXAM_IDS = Object.keys(EXAMS), EXAM_PREF = "certcoach.pref.exam";
+  var C, S, KEY, EXAM, DP, RPK, ALL_IDS, WEEK, SHORT, NEW_Q_RE, DS = null, LD = null, RV = null;
   // Fuller lessons (content/lessons-*.js) replace the short seed lessons when present, ordered by section then n.
-  if (C.lessonsNew && C.lessonsNew.length) {
-    var dOrder = C.domains.map(function (d) { return d.id; });
-    C.lessons = C.lessonsNew.slice().sort(function (a, b) { return dOrder.indexOf(a.domain) - dOrder.indexOf(b.domain) || a.n - b.n; });
+  function prepare(c) {
+    if (c.prepared) return; c.prepared = true;
+    if (c.lessonsNew && c.lessonsNew.length) {
+      var dOrder = c.domains.map(function (d) { return d.id; });
+      c.lessons = c.lessonsNew.slice().sort(function (a, b) { return dOrder.indexOf(a.domain) - dOrder.indexOf(b.domain) || a.n - b.n; });
+    }
+    c.lessons = c.lessons || []; c.cards = c.cards || []; c.questions = c.questions || [];
   }
-  var S = load();
-  function load() {
-    var s; try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  function loadState(key) {
+    var s; try { s = JSON.parse(localStorage.getItem(key)); } catch (e) {}
     s = s || {}; s.stats = s.stats || {}; s.cards = s.cards || {};
     if (!Array.isArray(s.mocks)) s.mocks = [];
     s.daily = s.daily || {}; s.plan = s.plan || {}; s.seen = s.seen || {}; s.read = s.read || {}; s.rev = s.rev || {};
     return s;
   }
+  function load() { return loadState(KEY); }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  function currentExam() { var id; try { id = localStorage.getItem(EXAM_PREF); } catch (e) {} return EXAMS[id] ? id : EXAM_IDS[0]; }
+  // Points every exam-specific variable at the given exam. Reads saved progress fresh; writes nothing.
+  function useExam(id) {
+    EXAM = EXAMS[id]; C = window[EXAM.content]; prepare(C);
+    KEY = EXAM.stateKey; S = load(); DP = "certcoach.pref.drill" + EXAM.prefSuffix; RPK = "certcoach.pref.review" + EXAM.prefSuffix;
+    ALL_IDS = C.domains.map(function (d) { return d.id; }); SHORT = EXAM.shortLabels; NEW_Q_RE = EXAM.newQRe ? new RegExp(EXAM.newQRe) : /^$/;
+    WEEK = WEEK_BUILDERS[id](); DS = null; LD = null; RV = null;
+  }
+  // Runs fn with another exam active, then restores the previous one (used for the hub and backups).
+  function withExam(id, fn) { var prev = EXAM.id; useExam(id); try { return fn(); } finally { useExam(prev); } }
+  var WEEK_BUILDERS = {};
   function dkey(d) { d = d || new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
   function today() { var r = S.daily[dkey()] || (S.daily[dkey()] = { q: 0, c: 0, l: [], m: 0 }); r.d = r.d || {}; r.sn = r.sn || 0; return r; }
   function daysUntil(str) { var p = str.split("-"), t = new Date(+p[0], +p[1] - 1, +p[2]), n = new Date(); n = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((t - n) / 864e5); }
@@ -32,7 +51,7 @@
   var disclaimer = '<p class="warn">AI-built personal study aid. Not official Anthropic material, and the content is AI-drafted and may contain errors; check it against Anthropic\'s docs.<br><a class="alink" href="#/about">About and caveats</a></p>';
   // ---------- Theme (light / dark / auto) and build version ----------
   var THEME_KEY = "certcoach.pref.theme";
-  var BUILD = "2026-10-26 12:50"; // stamped with the build time by scripts/build_site.py and scripts/build_single.py
+  var BUILD = "2026-10-26 14:14"; // stamped with the build time by scripts/build_site.py and scripts/build_single.py
   function themePref() { try { var t = localStorage.getItem(THEME_KEY); return t === "light" || t === "dark" ? t : "auto"; } catch (e) { return "auto"; } }
   function applyTheme() {
     var t = themePref(), el = document.documentElement;
@@ -49,20 +68,21 @@
     var li = function (t) { return "<li>" + t + "</li>"; };
     app.innerHTML = "<h1>About C⁴ (CatClaudeCertCoach)</h1><p class='mut'>Please read before you rely on this.</p>" +
       "<div class='card'><b>What it is</b><ul class='pts'>" +
-      li("A personal study aid for the Claude Certified Developer – Foundations exam, built with the help of an AI assistant (Claude).") +
+      li("A personal study aid for Anthropic's " + EXAM_IDS.map(function (id) { return "<b>" + esc(EXAMS[id].name) + "</b>"; }).join(" and ") + " exam" + (EXAM_IDS.length > 1 ? "s" : "") + ", built with the help of an AI assistant (Claude).") +
       li("It is <b>not</b> an official resource and has not been produced, reviewed or endorsed by Anthropic.") +
       li("It contains no real exam questions. All questions, lessons and explanations are original drafts.") + "</ul></div>" +
       "<div class='card trap'><b>Caveats</b><ul class='pts'>" +
       li("<b>It can be wrong.</b> All content is AI-drafted from Anthropic's public documentation and may contain mistakes or gaps. Items stay marked as unreviewed unless you tick them off yourself in the Review screen.") +
       li("<b>It goes out of date.</b> The Claude API and tools change quickly. Facts were checked against the docs in October 2026; anything version-dependent is flagged, but always confirm against the current docs.") +
-      li("<b>The exam may differ.</b> Exam format and domain weights follow Anthropic's official exam guide (v1.0, July 2026). Check the current guide, and eligibility and registration, on Anthropic's Partner Academy.") +
+      li("<b>The exam may differ.</b> Exam format and domain weights follow Anthropic's official exam guides (version 1.0, July 2026). Check the current guides, and eligibility and registration, on Anthropic's Partner Academy.") +
+      (EXAMS.arch ? li("<b>Some Architect topics rest on general practice.</b> Governance, compliance and stakeholder communication have less public Anthropic documentation, so those questions draw on widely accepted practice. They are not legal or regulatory advice; take compliance questions to your Legal, Compliance or Data Privacy team.") : "") +
       li("<b>No guarantee.</b> Using this does not guarantee a pass, and your score here does not predict your exam score.") + "</ul></div>" +
       "<div class='card'><b>Privacy</b><ul class='pts'>" +
       li("It runs in your browser. Your progress, notes and flags are stored only on this device and are not sent anywhere. There are no accounts.") +
       li("Don't type client names, confidential or personal information into the review notes. Use Backup to move your progress between devices.") +
       li("If you share this with others, follow your organisation's policies, and tell them it is an unofficial AI-built draft.") + "</ul></div>" +
       "<div class='card'><b>Appearance</b><div class='seg'>" + [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(function (o) { return "<button class='" + (themePref() === o[0] ? "sel" : "") + "' onclick=\"CCtheme('" + o[0] + "')\">" + o[1] + "</button>"; }).join("") + "</div><p class='mut'>Auto follows your phone's light or dark setting.</p></div>" +
-      "<div class='card'><b>Version</b><p class='mut'>" + (BUILD === "dev" ? "Development copy" : "Built " + esc(BUILD)) + " · " + C.questions.length + " questions · " + C.lessons.length + " lessons</p><p class='mut'>If you've uploaded an update, check this line to see whether it has reached this device.</p></div>" +
+      "<div class='card'><b>Version</b><p class='mut'>" + (BUILD === "dev" ? "Development copy" : "Built " + esc(BUILD)) + "</p>" + EXAM_IDS.map(function (id) { var c = window[EXAMS[id].content]; prepare(c); return "<p class='mut'>" + esc(EXAMS[id].short) + ": " + c.questions.length + " questions · " + c.lessons.length + " lessons</p>"; }).join("") + "<p class='mut'>If you've uploaded an update, check this line to see whether it has reached this device.</p></div>" +
       (first ? "<button class='pri' onclick='CCabout()'>I understand, continue</button>" : "<button class='pri' onclick=\"location.hash='#/'\">Back to home</button>");
     window.scrollTo(0, 0);
   }
@@ -76,7 +96,10 @@
     var sw = size < 60 ? 5 : 9, r = (size - sw - 3) / 2, c = 2 * Math.PI * r, m = size / 2;
     return "<div class='ring" + (size < 60 ? " sm" : "") + "' style='width:" + size + "px;height:" + size + "px'><svg width='" + size + "' height='" + size + "' viewBox='0 0 " + size + " " + size + "' aria-hidden='true'><circle cx='" + m + "' cy='" + m + "' r='" + r + "' fill='none' stroke='var(--bd)' stroke-width='" + sw + "'/><circle cx='" + m + "' cy='" + m + "' r='" + r + "' fill='none' stroke='var(--acc)' stroke-width='" + sw + "' stroke-linecap='round' stroke-dasharray='" + c.toFixed(1) + "' stroke-dashoffset='" + (c * (1 - pct / 100)).toFixed(1) + "' transform='rotate(-90 " + m + " " + m + ")'/></svg><b>" + (inner === undefined ? pct + "%" : inner) + "</b></div>";
   }
-  function setNav(r) { document.querySelectorAll("nav a").forEach(function (a) { a.className = a.getAttribute("href") === "#/" + r || (!r && a.getAttribute("href") === "#/") ? "on" : ""; }); }
+  function setNav(r) {
+    document.querySelectorAll("nav a").forEach(function (a) { a.className = a.getAttribute("href") === "#/" + r ? "on" : ""; });
+    var nav = document.getElementById("nav"); if (nav) nav.style.display = r ? "" : "none"; // the exam hub has no tab bar
+  }
   function paw(sz) { return "<svg class='paw' width='" + sz + "' height='" + sz + "' viewBox='0 0 160 160' aria-hidden='true'><use href='#i-paw'/></svg>"; }
   // Paw meter: five pads fill with progress (four toes first, the big pad last, so it is only full when everything is done).
   function pawMeter(done, total) {
@@ -106,11 +129,26 @@
     }
     return { kicker: "Welcome", title: "Pick how you want to study", sub: "Set a study plan, or just start a drill.", btn: "Set a study plan", act: "location.hash='#/plan'" };
   }
+  // Readiness for the current exam: mastery per domain weighted by exam share.
+  function readiness() { var tot = 0, w = 0; C.domains.forEach(function (d) { w += d.weight; tot += mastery(d.id) * d.weight; }); return Math.round(tot / w); }
+  // Hub: one card per exam with its own progress, so you can pick where to study and see both at a glance.
+  function hub() {
+    if (EXAM_IDS.length < 2) { location.hash = "#/home"; return; }
+    var last = currentExam();
+    var h = "<h1 class='sr'>C⁴ – CatClaudeCertCoach</h1><div class='hdr'>" + MARK + "<p class='tag'>CAT · CLAUDE · CERT · COACH</p></div><p class='mut'>Choose an exam to study for. Each one keeps its own progress.</p>";
+    EXAM_IDS.forEach(function (id) {
+      var x = withExam(id, function () { return { r: readiness(), s: streak(), t: today().q, na: nextAction(), seen: Object.keys(S.seen).length, nq: C.questions.length }; });
+      h += "<div class='card hero exam'><p class='kick'>" + esc(EXAMS[id].code) + (id === last ? " · last used" : "") + "</p><h2>" + esc(EXAMS[id].name) + "</h2>" +
+        "<div class='examrow'>" + ring(x.r, 72) + "<div class='examstat'><div class='pawn sm'>" + paw(22) + "<b>" + x.s + "</b></div><p class='mut'>day streak</p><p class='mut'>" + x.seen + " of " + x.nq + " questions seen · " + x.t + " today</p></div></div>" +
+        "<p class='mut'>" + esc(x.na.kicker) + ": " + esc(x.na.title) + "</p><button class='pri' onclick=\"CCopen('" + id + "')\">" + (id === last ? "Continue" : "Open") + " " + esc(EXAMS[id].short) + "</button></div>";
+    });
+    h += "<p class='mut'><a class='alink' href='#/about'>About, version and appearance</a></p>" + disclaimer;
+    app.innerHTML = h;
+  }
+  window.CCopen = function (id) { if (!EXAMS[id]) return; try { localStorage.setItem(EXAM_PREF, id); } catch (e) {} useExam(id); location.hash = "#/home"; };
   function home() {
-    var h = "<h1 class='sr'>C⁴ – CatClaudeCertCoach</h1><div class='hdr'>" + MARK + "<p class='tag'>CAT · CLAUDE · CERT · COACH</p></div><p class='mut'>Claude Certified Developer – Foundations prep</p>";
-    var tot = 0, w = 0;
-    C.domains.forEach(function (d) { w += d.weight; tot += mastery(d.id) * d.weight; });
-    var ready = Math.round(tot / w), na = nextAction(), n = drillPrefs().n;
+    var h = "<h1 class='sr'>C⁴ – CatClaudeCertCoach</h1><div class='hdr'>" + MARK + "<p class='tag'>CAT · CLAUDE · CERT · COACH</p></div><p class='mut'>" + esc(EXAM.name) + " prep</p>";
+    var ready = readiness(), na = nextAction(), n = drillPrefs().n;
     h += "<div class='card hero'><p class='kick'>" + esc(na.kicker) + "</p><h2>" + esc(na.title) + "</h2><p class='mut'>" + esc(na.sub) + "</p><button class='pri' onclick=\"" + na.act + "\">" + esc(na.btn) + "</button></div>";
     h += "<div class='grid2'><div class='card statc'>" + ring(ready, 84) + "<p class='mut'>Readiness, weighted by exam share</p></div>" +
       "<div class='card statc'><div class='pawn'>" + paw(30) + "<b>" + streak() + "</b></div><p class='mut'>day streak</p><p class='mut'>" + today().q + " answered today</p></div></div>";
@@ -165,9 +203,9 @@
       var w = C.why && C.why[q.id];
       return Object.assign({}, q, { options: order.map(function (k) { return q.options[k]; }), correct: q.correct.map(function (c) { return order.indexOf(c); }), why: w && w.length === q.options.length ? order.map(function (k) { return w[k].replace(/^(Right|Wrong|Correct|Incorrect):\s*/, ""); }) : null });
     });
-    Q = { list: list, i: 0, picks: [], done: false, right: 0, mode: mode, end: mode === "mock" ? Date.now() + 120 * 60000 : 0 };
+    Q = { list: list, i: 0, picks: [], done: false, right: 0, mode: mode, end: mode === "mock" ? Date.now() + EXAM.mockMinutes * 60000 : 0 };
     if (mode === "mock") timer = setInterval(tick, 1000);
-    setNav(mode === "mock" ? "mock" : "drill");
+    setNav(mode === "mock" ? "mock" : "drill"); setChip(false);
     renderQ();
   }
   function tick() { var el = document.getElementById("t"); if (!el || !Q) return; var s = Math.max(0, Math.round((Q.end - Date.now()) / 1000)); el.textContent = Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); if (!s) finish(); }
@@ -233,11 +271,11 @@
       brk = "<h2>By domain</h2>";
       C.domains.forEach(function (d) { var b = by[d.id]; if (b) brk += "<div class='card'><div class='row'><span>" + esc(d.name) + "</span><b>" + b.c + "/" + b.n + "</b></div>" + bar(Math.round(100 * b.c / b.n)) + "</div>"; });
     }
-    var btns = "<button class='pri' onclick=\"location.hash='#/'\">See progress</button>";
+    var btns = "<button class='pri' onclick=\"location.hash='#/home'\">See progress</button>";
     if (Q.mode === "drill") {
       var dd = {}; Q.list.forEach(function (q, i) { var b = dd[q.domain] || (dd[q.domain] = { c: 0, n: 0 }); b.n++; if (Q.picks[i]) b.c++; });
       if (Object.keys(dd).length > 1) { brk = "<h2>By section</h2>"; C.domains.forEach(function (d) { var b = dd[d.id]; if (b) brk += "<div class='card'><div class='row'><span>" + esc(d.name) + "</span><b>" + b.c + "/" + b.n + "</b></div>" + bar(Math.round(100 * b.c / b.n)) + "</div>"; }); }
-      btns = "<button class='pri' onclick='CCdrillAgain()'>Another " + LD.n + " questions</button><button onclick='CCdrillMenu()'>Change drill settings</button><button onclick=\"location.hash='#/'\">See progress</button>";
+      btns = "<button class='pri' onclick='CCdrillAgain()'>Another " + LD.n + " questions</button><button onclick='CCdrillMenu()'>Change drill settings</button><button onclick=\"location.hash='#/home'\">See progress</button>";
     }
     var msg = pct >= 90 ? "Brilliant work" : pct >= 70 ? "Nice work" : pct >= 50 ? "Getting there" : "Good practice";
     var sub = r + " of " + n + " correct" + (Q.mode === "mock" ? ". Unanswered questions count as wrong." : pct < 50 ? ". The explanations are where the learning happens." : ".");
@@ -248,7 +286,6 @@
   }
 
   // ---------- Drills: N questions from chosen sections ----------
-  var DP = "certcoach.pref.drill", DS = null, LD = null, ALL_IDS = C.domains.map(function (d) { return d.id; });
   function drillPrefs() {
     try {
       var p = JSON.parse(localStorage.getItem(DP));
@@ -345,12 +382,11 @@
     return groupScenarios(out);
   }
   function mock() {
-    var a = allocate(53), n = C.domains.reduce(function (s, d) { return s + a[d.id]; }, 0);
-    var h = "<h1>Mock exam</h1><div class='card'><p>" + n + " questions · 120 minutes.</p><label class='row'><span>Show right/wrong and the reason after each question</span><input type='checkbox' id='mfb' onchange='CCmfb(this.checked)'" + (mockFeedback() ? " checked" : "") + "></label><p class='mut'>Turn this off to practise under real exam conditions, with results only at the end.</p><p class='mut'>Questions are sampled by exam domain weight, so each mock mirrors the real exam's mix.</p>";
+    var a = allocate(EXAM.mockN), n = C.domains.reduce(function (s, d) { return s + a[d.id]; }, 0);
+    var h = "<h1>Mock exam</h1><div class='card'><p>" + n + " questions · " + EXAM.mockMinutes + " minutes.</p><label class='row'><span>Show right/wrong and the reason after each question</span><input type='checkbox' id='mfb' onchange='CCmfb(this.checked)'" + (mockFeedback() ? " checked" : "") + "></label><p class='mut'>Turn this off to practise under real exam conditions, with results only at the end.</p><p class='mut'>Questions are sampled by exam domain weight, so each mock mirrors the real exam's mix.</p>";
     C.domains.forEach(function (d) { h += "<div class='row mut'><span>" + esc(d.name) + "</span><span>" + a[d.id] + "</span></div>"; });
     app.innerHTML = h + "</div><button class='pri' onclick='CCmock()'>Start</button>" + mockHistory();
   }
-  var SHORT = { apps: "Apps", models: "Models", agents: "Agents", prompt: "Prompt", tools: "Tools", security: "Security", code: "Code", eval: "Eval" };
   function mockHistory() {
     if (!S.mocks.length) return "";
     var h = "<h2>Mock history</h2>", withBy = S.mocks.filter(function (m) { return m.by; });
@@ -364,14 +400,14 @@
         rows.push({ d: d, p: tot[d.id][0] / tot[d.id][1], n: tot[d.id][1] });
         t += "<tr><td>" + SHORT[d.id] + "</td>" + cols.map(function (m) { var b = m.by[d.id]; return b ? cell(b[0], b[1]) : "<td>–</td>"; }).join("") + cell(tot[d.id][0], tot[d.id][1]) + "</tr>";
       });
-      t += "</table><p class='mut'>Red under 70%, green 80%+. Small domains (Claude Code, Eval) have only 1–2 questions per mock, so read them across several mocks.</p>";
+      t += "</table><p class='mut'>Red under 70%, green 80%+. " + EXAM.smallNote + "</p>";
       rows.sort(function (a, b) { return a.p - b.p; });
       h += "<div class='card'>" + t + "<p><b>Weakest across mocks:</b> " + esc(rows[0].d.name) + " (" + Math.round(100 * rows[0].p) + "%)</p></div>";
     }
     S.mocks.slice(-5).reverse().forEach(function (m) { h += "<div class='card row'><span>#" + (S.mocks.indexOf(m) + 1) + " · " + esc(m.date || "") + "</span><b>" + m.pct + "% (" + m.right + "/" + m.n + ")</b></div>"; });
     return h;
   }
-  window.CCmock = function () { startQuiz(weightedSample(53), "mock"); };
+  window.CCmock = function () { startQuiz(weightedSample(EXAM.mockN), "mock"); };
 
   // ---------- Flashcards (Leitner-style spacing) ----------
   var DAY = 864e5, GAP = [0, 1, 3, 7, 16, 35];
@@ -391,7 +427,11 @@
 
   // ---------- Backup / restore ----------
   var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-  function backupText() { return JSON.stringify({ app: "certcoach", version: 1, exported: new Date().toISOString(), data: S }); }
+  // Version 2 holds every exam's progress; version 1 files (Developer only) are still accepted on restore.
+  function backupText() {
+    var ex = {}; EXAM_IDS.forEach(function (id) { ex[id] = id === EXAM.id ? S : loadState(EXAMS[id].stateKey); });
+    return JSON.stringify({ app: "certcoach", version: 2, exported: new Date().toISOString(), exams: ex });
+  }
   function num(v) { return typeof v === "number" && isFinite(v) && v >= 0 ? v : null; }
   // Rebuild state from untrusted input, keeping only known, well-typed fields.
   function cleanState(d) {
@@ -425,12 +465,20 @@
   }
   function restore(text) {
     var env; try { env = JSON.parse(text); } catch (e) { alert("That isn't valid backup text. Nothing was changed."); return; }
-    if (!env || env.app !== "certcoach" || env.version !== 1 || !env.data) { alert("That isn't a C⁴ backup. Nothing was changed."); return; }
-    var n = cleanState(env.data); if (!n) { alert("The backup couldn't be read. Nothing was changed."); return; }
-    var answered = Object.keys(n.stats).reduce(function (s, k) { return s + n.stats[k].a; }, 0);
+    var okV1 = env && env.version === 1 && env.data && typeof env.data === "object", okV2 = env && env.version === 2 && env.exams && typeof env.exams === "object";
+    if (!env || env.app !== "certcoach" || !(okV1 || okV2)) { alert("That isn't a C⁴ backup. Nothing was changed."); return; }
+    var src = okV1 ? { dev: env.data } : env.exams, clean = {}, lines = [];
+    Object.keys(src).forEach(function (id) {
+      if (!EXAMS[id]) return;
+      var n = withExam(id, function () { return cleanState(src[id]); }); if (!n) return;
+      clean[id] = n;
+      lines.push(EXAMS[id].name + ": " + Object.keys(n.stats).reduce(function (s, k) { return s + n.stats[k].a; }, 0) + " questions answered, " + n.mocks.length + " mock exams, " + Object.keys(n.daily).length + " study days");
+    });
+    if (!Object.keys(clean).length) { alert("The backup couldn't be read. Nothing was changed."); return; }
     var when = typeof env.exported === "string" ? env.exported.slice(0, 10) : "unknown date";
-    if (!confirm("Replace your current progress with this backup?\n\nExported: " + when + "\nQuestions answered: " + answered + "\nMock exams: " + n.mocks.length + "\nStudy days: " + Object.keys(n.daily).length + "\n\nThis can't be undone. Export first if unsure.")) return;
-    S = n; save(); alert("Backup restored."); location.hash = "#/"; route();
+    if (!confirm("Replace your current progress with this backup?\n\nExported: " + when + "\n" + lines.join("\n") + "\n\nExams not in the backup are left as they are. This can't be undone. Export first if unsure.")) return;
+    Object.keys(clean).forEach(function (id) { try { localStorage.setItem(EXAMS[id].stateKey, JSON.stringify(clean[id])); } catch (e) {} });
+    useExam(EXAM.id); alert("Backup restored."); location.hash = "#/"; route();
   }
   window.CCexport = function () {
     var blob = new Blob([backupText()], { type: "application/json" }), a = document.createElement("a");
@@ -456,7 +504,6 @@
   var REVISED_Q = ["m07", "m09", "m10", "m20", "m25", "m28", "m37", "c03", "c05", "p05", "p06", "t01", "t11", "t22", "a04", "a22", "a23", "b03", "s2b", "q3", "q10", "q11"];
   var REVISED_L = ["apps-1", "apps-2", "prompt-1"];
   var NEW_L = ["apps-9", "apps-10", "apps-11", "apps-12", "models-5", "models-6", "agents-5", "agents-6", "tools-5", "tools-6", "code-3", "eval-3", "prompt-4", "security-4"];
-  var NEW_Q_RE = /^[rwdlkxyzuv]\d\d$/, RPK = "certcoach.pref.review", RV = null;
   function rprefs() {
     var d = { kind: "all", dom: "all", set: "all", status: "todo" };
     try { var p = JSON.parse(localStorage.getItem(RPK)); if (p) { ["kind", "dom", "set", "status"].forEach(function (k) { if (typeof p[k] === "string") d[k] = p[k]; }); } } catch (e) {}
@@ -502,7 +549,7 @@
     h += "<div class='card'><b>What to review</b>" +
       "<label class='fld'>Type<select onchange=\"CCrf('kind',this.value)\">" + selOpts([["all", "Questions and lessons"], ["q", "Questions only"], ["l", "Lessons only"]], f.kind) + "</select></label>" +
       "<label class='fld'>Section<select onchange=\"CCrf('dom',this.value)\">" + selOpts([["all", "All sections"]].concat(C.domains.map(function (d) { return [d.id, d.name]; })), f.dom) + "</select></label>" +
-      "<label class='fld'>Set<select onchange=\"CCrf('set',this.value)\">" + selOpts([["all", "Everything"], ["revised", "Revised after the docs fact-check"], ["new", "New in the gap-fill"], ["scenario", "Scenario questions"]], f.set) + "</select></label>" +
+      "<label class='fld'>Set<select onchange=\"CCrf('set',this.value)\">" + selOpts(EXAM.id === "dev" ? [["all", "Everything"], ["revised", "Revised after the docs fact-check"], ["new", "New in the gap-fill"], ["scenario", "Scenario questions"]] : [["all", "Everything"], ["scenario", "Scenario questions"]], EXAM.id === "dev" || f.set === "scenario" ? f.set : "all") + "</select></label>" +
       "<label class='fld'>Status<select onchange=\"CCrf('status',this.value)\">" + selOpts([["todo", "Not yet reviewed"], ["flag", "Flagged"], ["ok", "Reviewed"], ["all", "Any"]], f.status) + "</select></label>" +
       "<p class='mut'>" + match.length + " item" + (match.length === 1 ? "" : "s") + " match.</p></div>";
     h += match.length ? "<button class='pri' onclick='CCrstart()'>Start reviewing (" + match.length + ")</button>" : "<p class='mut'>Nothing matches these filters.</p>";
@@ -569,7 +616,7 @@
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { alert("Copied. Paste it into a message to send for fixing."); }, fb); else fb();
   };
   window.CCreset = function () {
-    if (!confirm("Reset your study progress? Your content review marks are kept.")) return;
+    if (!confirm("Reset your study progress for " + EXAM.name + "? Your content review marks are kept, and your other exam is not touched.")) return;
     var keep = S.rev || {}; localStorage.removeItem(KEY);
     try { localStorage.setItem(KEY, JSON.stringify({ rev: keep })); } catch (e) {}
     location.reload();
@@ -582,10 +629,10 @@
     if (days <= 0) return { phase: "Exam day", note: "Light review only. Rest and trust your preparation.", q: 0, l: 0, c: 10, mock: false };
     if (days === 1) return { phase: "Eve of exam", note: "No new material. Review flashcards and your weakest domain, then rest.", q: 10, l: 0, c: 15, mock: false };
     var mockDay = days <= 7 && (days === 7 || days === 4 || days === 2);
-    if (days <= 7) p = { phase: "Mock and review", note: "Take timed mocks, then fix the weakest domains.", q: mockDay ? 53 : 30, l: 0, c: 15, mock: mockDay };
+    if (days <= 7) p = { phase: "Mock and review", note: "Take timed mocks, then fix the weakest domains.", q: mockDay ? EXAM.mockN : 30, l: 0, c: 15, mock: mockDay };
     else if (days <= 21) {
       var pm = days % 7 === 0;
-      p = { phase: "Practice", note: "Drill by domain, revisit lessons for weak areas, one mock a week.", q: pm ? 53 : Math.min(60, Math.max(20, Math.ceil(N / Math.max(1, days - 5)))), l: 1, c: 15, mock: pm };
+      p = { phase: "Practice", note: "Drill by domain, revisit lessons for weak areas, one mock a week.", q: pm ? EXAM.mockN : Math.min(60, Math.max(20, Math.ceil(N / Math.max(1, days - 5)))), l: 1, c: 15, mock: pm };
     } else p = { phase: "Learn", note: "Work through lessons in weight order, then practise each domain.", q: Math.min(40, Math.max(15, Math.ceil(N / Math.max(1, days - 5)))), l: Math.min(3, Math.max(1, Math.ceil(L / Math.max(1, days * 0.4)))), c: 10, mock: false };
     return p;
   }
@@ -610,7 +657,7 @@
     cards: function (n) { return { k: "cards", n: n }; }
   };
   function LS(p, n) { var o = []; for (var i = 1; i <= n; i++) o.push(p + "-" + i); return o; }
-  var WEEK = [
+  WEEK_BUILDERS.dev = function () { return [
     { t: "Applications & Integration, part 1", note: "The biggest section at 33% of the exam: the Messages API, responses and stop reasons, streaming and errors, structured output, requirements and life cycle, software engineering foundations, application design and configuration.", tasks: [T.lessons(LS("apps", 4).concat(["apps-9", "apps-10", "apps-11", "apps-12"])), T.drill(["apps"], 20), T.cards(10)] },
     { t: "Applications & Integration part 2, and Models", note: "Prompt caching, batching, images and PDFs, production architecture, then choosing models, thinking and effort, LLM and technical fundamentals.", tasks: [T.lessons(["apps-5", "apps-6", "apps-7", "apps-8"].concat(LS("models", 6))), T.drill(["apps"], 20), T.drill(["models"], 20), T.cards(10)] },
     { t: "Agents & Workflows, and Prompting", note: "The agentic loop, workflow patterns, reliability, the Agent SDK and frameworks, then prompt and context engineering and output handling.", tasks: [T.lessons(LS("agents", 6).concat(LS("prompt", 4))), T.drill(["agents"], 20), T.drill(["prompt"], 20), T.scn(10), T.cards(10)] },
@@ -618,7 +665,17 @@
     { t: "Claude Code and Eval, then scenarios", note: "Claude Code memory, settings, commands, sessions and modes; evals, debugging and error handling. Finish with scenario questions.", tasks: [T.lessons(LS("code", 3).concat(LS("eval", 3))), T.drill(["code", "eval"], 15), T.scn(10), T.cards(10)] },
     { t: "Mixed practice and mock 1", note: "Everything together, scenario questions, then a full mock.", tasks: [T.drill(ALL_IDS, 30), T.scn(20), T.mock(), T.cards(10)] },
     { t: "Final push: mock 2 and weak spots", note: "Take this mock under exam conditions (switch feedback off on the Mock page), then drill your weakest sections.", tasks: [T.mock(), T.weak(20), T.cards(10)] }
-  ];
+  ]; };
+  // Architect – Professional: seven days, one per domain (blueprint order), then mixed practice and two mocks.
+  WEEK_BUILDERS.arch = function () { return [
+    { t: "Solution Design & Architecture", note: "The second-largest domain at 17%: turning business problems into Claude solutions, workflow versus agentic patterns, multi-agent design, decomposition, and tying designs to business value.", tasks: [T.lessons(LS("design", 7)), T.drill(["design"], 20), T.cards(10)] },
+    { t: "Models, Prompting & Context, and Developer Productivity", note: "Choosing models by trade-off, system prompts and guardrails, few-shot and chain-of-thought, context and token budgets, caching and Skills; then rolling Claude Code out to teams.", tasks: [T.lessons(LS("models", 6).concat(LS("devprod", 3))), T.drill(["models"], 20), T.drill(["devprod"], 10), T.cards(10)] },
+    { t: "Integration", note: "The biggest domain at 19%: capability bloat, authentication and authorization gaps, accuracy-latency trade-offs, observability, RAG design, retrieval strategy, MCP versus API versus agent-to-agent, progressive discovery.", tasks: [T.lessons(LS("integ", 8)), T.drill(["integ"], 25), T.scn(10), T.cards(10)] },
+    { t: "Evaluation, Testing & Optimization", note: "Metrics, evaluation datasets and test frameworks, A/B testing, diagnosing prompt failure and hallucination, token and cost-performance optimisation, monitoring.", tasks: [T.lessons(LS("eval", 6)), T.drill(["eval"], 20), T.cards(10)] },
+    { t: "Governance, Safety & Risk Management", note: "Guardrails, failure modes and limits, human-in-the-loop validation, regulatory concepts such as GDPR, HIPAA and FedRAMP, and ethical AI. Take regulatory questions to Legal, Compliance or your Data Privacy Officer in real work.", tasks: [T.lessons(LS("gov", 5)), T.drill(["gov"], 20), T.scn(10), T.cards(10)] },
+    { t: "Stakeholders & Lifecycle, then mixed practice and mock 1", note: "Discovery, communicating trade-offs, expectations and SLAs, documentation, lifecycle phases. Then a mixed drill and a full mock.", tasks: [T.lessons(LS("comm", 5)), T.drill(ALL_IDS, 20), T.mock(), T.cards(10)] },
+    { t: "Final push: mock 2 and weak spots", note: "Take this mock under exam conditions (switch feedback off on the Mock page), then drill your weakest domains.", tasks: [T.mock(), T.weak(20), T.cards(10)] }
+  ]; };
   function lessonTitle(id) { var l = C.lessons.filter(function (x) { return x.id === id; })[0]; return l ? l.title : id; }
   function weekDay() { return S.plan.week ? 1 - daysUntil(S.plan.week) : 0; }
   function weekDate(k) { var p = S.plan.week.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2] + k); return d; }
@@ -634,7 +691,7 @@
       var list = ls.map(function (x) { return "<div class='lsn'>" + (rec.l.indexOf(x.id) >= 0 ? "✓ " : "○ ") + esc(x.title) + "</div>"; }).join("");
       return { label: "<details><summary>Read " + ls.length + " lessons · about " + mins + " min</summary>" + list + "</details>", done: read, target: ls.length, btn: "Open next lesson", act: nxt ? "location.hash='#/learn/" + nxt.id + "'" : "" };
     }
-    if (t.k === "mock") return { label: "Full mock exam (53 questions)", done: Math.min(rec.m || 0, 1), target: 1, btn: "Go to mock", act: "location.hash='#/mock'" };
+    if (t.k === "mock") return { label: "Full mock exam (" + EXAM.mockN + " questions)", done: Math.min(rec.m || 0, 1), target: 1, btn: "Go to mock", act: "location.hash='#/mock'" };
     if (t.k === "cards") {
       // Cap the target at cards actually due (cards you got right aren't due again for a day or more).
       var due = C.cards.filter(function (c) { var s = S.cards[c.id]; return !s || s.due <= Date.now(); }).length, did = rec.c || 0, target = Math.min(t.n, due + did);
@@ -712,12 +769,25 @@
   // ---------- Router ----------
   function route() {
     var p = location.hash.replace(/^#\/?/, "").split("/"), r = p[0] || "";
-    if (!aboutSeen() || r === "about") { clearInterval(timer); Q = null; about(); return; }
+    if (!aboutSeen() || r === "about") { clearInterval(timer); Q = null; setChip(false); about(); return; }
     if (r !== "drill" && r !== "mock") { clearInterval(timer); Q = null; }
+    if (["home", "learn", "drill", "mock", "cards", "plan", "review"].indexOf(r) < 0) r = ""; // anything else opens the exam hub
     setNav(r);
     window.scrollTo(0, 0);
+    if (r === "") { setChip(false); hub(); return; }
     if (r === "learn") learn(p[1]); else if (r === "drill") drill(p[1]); else if (r === "mock") mock(); else if (r === "cards") cards(); else if (r === "plan") plan(); else if (r === "review") { RV = null; review(); } else home();
+    setChip(!Q);
   }
+  // Exam chip (outside #app, so it survives screens that re-render themselves): shows which exam you are in and is the way
+  // back to the hub. Hidden on the hub, About and during a quiz.
+  function setChip(show) {
+    var xc = document.getElementById("xc");
+    if (!xc) { xc = document.createElement("div"); xc.id = "xc"; app.parentNode.insertBefore(xc, app); }
+    if (!show || EXAM_IDS.length < 2) { xc.style.display = "none"; return; }
+    xc.style.display = "";
+    xc.innerHTML = "<a class='xchip' href='#/' aria-label='Switch exam. Current exam: " + esc(EXAM.name) + "'><b>" + esc(EXAM.short) + "</b><span>" + esc(EXAM.code) + " · switch exam</span></a>";
+  }
+  useExam(currentExam());
   applyTheme();
   window.addEventListener("scroll", function () {
     var e = document.getElementById("rp"); if (!e) return;
