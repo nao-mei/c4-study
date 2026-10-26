@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="C⁴">
+<meta name="theme-color" content="#1f1e1d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="robots" content="noindex, nofollow">
+<title>C⁴ · CatClaudeCertCoach</title>
+<style>
+:root{--bg:#faf9f5;--fg:#1f1e1d;--card:#fff;--mut:#6b6a68;--acc:#d97757;--ok:#2e7d32;--bad:#c62828;--bd:#e6e3da}
+@media(prefers-color-scheme:dark){:root{--bg:#1f1e1d;--fg:#f4f3ee;--card:#2b2a28;--mut:#a8a69f;--bd:#3a3936}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,system-ui,sans-serif;padding-top:env(safe-area-inset-top)}
+main{max-width:640px;margin:0 auto;padding:16px 16px calc(84px + env(safe-area-inset-bottom))}
+h1{font-size:22px;margin:8px 0 4px}
+label.fld{display:block;margin:10px 0 0;font-size:14px;color:var(--mut)}
+select{font:inherit;display:block;width:100%;min-height:44px;margin-top:4px;padding:8px 10px;border-radius:12px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
+.chip{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--bd);color:var(--mut)}.chip.ok{color:var(--ok);border-color:var(--ok)}.chip.bad{color:var(--bad);border-color:var(--bad)}
+.card.rok{border-color:var(--ok)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hdr{display:flex;align-items:center;gap:14px;margin:6px 0 4px}.hdr .mark{flex:none}
+.tag{font-size:12px;letter-spacing:.6px;color:var(--mut);margin:0}h2{font-size:18px;margin:16px 0 8px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:10px 0}
+.mut{color:var(--mut);font-size:14px}
+button,.btn{font:inherit;min-height:44px;padding:10px 16px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--fg);width:100%;text-align:left;margin:6px 0;cursor:pointer}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc);text-align:center;font-weight:600}
+button.sel{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc) inset}
+button.ok{border-color:var(--ok);background:rgba(46,125,50,.15)}
+button.bad{border-color:var(--bad);background:rgba(198,40,40,.15)}
+.bar{height:8px;background:var(--bd);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+pre{background:rgba(127,127,127,.15);padding:10px;border-radius:10px;overflow:auto;font-size:13px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav a{flex:1;text-align:center;padding:10px 0;color:var(--mut);text-decoration:none;font-size:12px;min-height:44px}
+nav a.on{color:var(--acc);font-weight:700}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.scn{border-left:4px solid var(--acc);font-size:14px}.scn p{margin:6px 0 0}
+input[type=date]{font:inherit;min-height:44px;width:100%;padding:8px 12px;border-radius:12px;border:1px solid var(--bd);background:var(--bg);color:var(--fg);margin:6px 0}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl th,.tbl td{padding:6px 4px;text-align:center;border-bottom:1px solid var(--bd)}.tbl td:first-child{text-align:left}.tbl th{color:var(--mut);font-weight:600}
+.tbl td.lo{color:var(--bad);font-weight:700}.tbl td.hi{color:var(--ok);font-weight:700}
+ul.pts{margin:0;padding-left:20px}ul.pts li{margin:8px 0}.trap{border-left:4px solid var(--bad)}.src{font-size:13px;word-break:break-all;margin:6px 0}.src a{color:var(--acc)}
+.lsn{font-size:13px;color:var(--mut);padding:3px 0}details summary{cursor:pointer}
+.seg{display:flex;gap:8px;flex-wrap:wrap}.seg button{flex:1;text-align:center;margin:6px 0;min-width:64px}
+label.chk{padding:8px 0;border-bottom:1px solid var(--bd);align-items:center}label.chk:last-of-type{border-bottom:0}
+.wk{padding:6px 0;font-size:14px}.wk.now{font-weight:700;color:var(--acc)}
+.rsn{font-size:14px}details p{margin:8px 0}label.btn{display:block}input[type=checkbox]{width:24px;height:24px;flex:none;accent-color:var(--acc)}summary{min-height:44px;line-height:44px;cursor:pointer}
+textarea{font:inherit;width:100%;padding:10px;border-radius:12px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
+.warn{font-size:12px;color:var(--mut);border-top:1px dashed var(--bd);margin-top:20px;padding-top:8px}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav id="nav">
+  <a href="#/">Home</a><a href="#/plan">Plan</a><a href="#/learn">Learn</a><a href="#/drill">Drill</a><a href="#/mock">Mock</a><a href="#/cards">Cards</a>
+</nav>
+<script src="content/content.js"></script>
+<script src="content/questions-apps.js"></script>
+<script src="content/questions-core.js"></script>
+<script src="content/questions-apps2.js"></script>
+<script src="content/questions-gaps.js"></script>
+<script src="content/questions-scenarios.js"></script>
+<script src="content/lessons-apps-a.js"></script>
+<script src="content/lessons-apps-b.js"></script>
+<script src="content/lessons-models-code-eval.js"></script>
+<script src="content/lessons-agents-prompt.js"></script>
+<script src="content/lessons-tools-security.js"></script>
+<script src="content/why-apps-1.js"></script>
+<script src="content/why-apps-2.js"></script>
+<script src="content/why-models-code-eval.js"></script>
+<script src="content/why-agents-prompt.js"></script>
+<script src="content/why-tools-security.js"></script>
+<script src="content/gap-a.js"></script>
+<script src="content/gap-b.js"></script>
+<script src="content/gap-c.js"></script>
+<script src="content/gap-d.js"></script>
+<script src="content/gap-e.js"></script>
+<script src="content/gap-f.js"></script>
+<script src="content/gap-g.js"></script>
+<script src="content/gap-h.js"></script>
+<script src="content/gap-i.js"></script>
+<script src="content/gap-j.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
